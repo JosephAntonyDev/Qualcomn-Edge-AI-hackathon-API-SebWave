@@ -8,14 +8,16 @@ import (
 	"github.com/joho/godotenv"
 
 	alertInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/alert/infra"
-	"github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/core"	
-	emergencyInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/emergency/infra"	
-	intersectionInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/intersection/infra"	
-	metricsInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/metrics/infra"	
+	auditInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/audit/infra"
+	"github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/core"
+	emergencyInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/emergency/infra"
+	intersectionInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/intersection/infra"
+	metricsInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/metrics/infra"
 	sensorInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/sensor/infra"
 	trafficCycleInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/traffic_cycle/infra"
-	userInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/user/infra"	
+	userInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/user/infra"
 	wsHub "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/websocket"
+	wsInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/websocket/infra"
 )
 
 func main() {
@@ -49,10 +51,11 @@ func main() {
 	alertInfra.SetupDependencies(r, db, jwtSecret)
 	emergencyInfra.SetupDependencies(r, db, jwtSecret)
 	metricsInfra.SetupDependencies(r, db, jwtSecret)
+	auditInfra.SetupDependencies(r, db, jwtSecret)
 
-	// Exponer endpoint /ws
-	wsHub.RegisterWebSocketRoutes(r, hub)
-	
+	// Exponer endpoint /ws con lógica de DB
+	wsHub.RegisterRoutes(r, hub, wsInfra.HandleSensorData(db), wsInfra.HandleEmergency(db))
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"

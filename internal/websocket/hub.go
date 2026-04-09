@@ -1,31 +1,23 @@
 package websocket
 
-import (
-	"log"
-)
+import "sync"
 
-// Hub mantiene el conjunto de clientes (Apps Móviles y Arduinos) activos
-// y transmite mensajes a todos o a grupos específicos.
 type Hub struct {
-	// Clientes registrados.
-	Clients map[*Client]bool
+	MobileClients map[*Client]bool
+	ArduinoClient *Client
 
-	// Mensajes entrantes para broadcast general (puede ser modificado para enviar por IntersectionID).
-	Broadcast chan []byte
-
-	// Registrar peticiones de clientes.
-	Register chan *Client
-
-	// Desregistrar peticiones de clientes.
+	Register   chan *Client
 	Unregister chan *Client
+	Broadcast  chan WSMessage
+	mu         sync.RWMutex
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		Broadcast:  make(chan []byte),
-		Register:   make(chan *Client),
-		Unregister: make(chan *Client),
-		Clients:    make(map[*Client]bool),
+		MobileClients: make(map[*Client]bool),
+		Register:      make(chan *Client),
+		Unregister:    make(chan *Client),
+		Broadcast:     make(chan WSMessage, 256),
 	}
 }
 
@@ -33,27 +25,40 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case client := <-h.Register:
-			h.Clients[client] = true
-			log.Printf("Nuevo cliente registrado: %s (%s) en intersección: %s", client.ID, client.Role, client.IntersectionID)
+			h.mu.Lock()
+			if client.IsArduino {
+				h.ArduinoClient = client
+			} else {
+				h.MobileClients[client] = true
+			}
+			h.mu.Unlock()
 
 		case client := <-h.Unregister:
-			if _, ok := h.Clients[client]; ok {
-				delete(h.Clients, client)
-				close(client.Send)
-				log.Printf("Cliente desconectado: %s (%s)", client.ID, client.Role)
+			h.mu.Lock()
+			if client.IsArduino {
+				if h.ArduinoClient == client {
+					h.ArduinoClient = nil
+				}
+			} else {
+				delete(h.MobileClients, client)
 			}
+			h.mu.Unlock()
 
-		case message := <-h.Broadcast:
-			// En un futuro, el broadcast general puede refinarse para enviar solo
-			// a los clientes móviles suscritos a un "IntersectionID" particular.
-			for client := range h.Clients {
+		case msg := <-h.Broadcast:
+			h.mu.RLock()
+			for client := range h.MobileClients {
 				select {
-				case client.Send <- message:
+				case client.Send <- msg:
 				default:
 					close(client.Send)
-					delete(h.Clients, client)
+					delete(h.MobileClients, client)
 				}
 			}
+			h.mu.RUnlock()
 		}
 	}
+}
+
+func (h *Hub) BroadcastToMobile(msg WSMessage) {
+	h.Broadcast <- msg
 }

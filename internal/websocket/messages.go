@@ -1,44 +1,52 @@
 package websocket
 
-import (
-	"encoding/json"
-)
+import "encoding/json"
 
-type MessageType string
-
-const (
-	// Desde Arduino → Backend
-	MsgSensorData   MessageType = "sensor_data"
-	MsgEmergencyOn  MessageType = "emergency_on"
-	MsgEmergencyOff MessageType = "emergency_off"
-	MsgPhaseChange  MessageType = "phase_change"
-
-	// Desde Backend → App móvil
-	MsgSensorUpdate       MessageType = "sensor_update"
-	MsgEmergencyAlert     MessageType = "emergency_alert"
-	MsgIntersectionStatus MessageType = "intersection_status"
-
-	// Desde App móvil → Backend
-	MsgTriggerEmergency MessageType = "trigger_emergency"
-	MsgAdjustCycle      MessageType = "adjust_cycle"
-)
-
-// Estructura genérica del mensaje WebSocket
 type WSMessage struct {
-	Type           MessageType     `json:"type"`
-	IntersectionID string          `json:"intersection_id,omitempty"`
-	Payload        json.RawMessage `json:"payload"`
+	Type string          `json:"type"`
+	Data json.RawMessage `json:"data"`
 }
 
-// Ejemplos de Payloads (se pueden expandir en el futuro)
-type SensorDataPayload struct {
-	DensityNS  *float64 `json:"density_ns,omitempty"`
-	DensityEO  *float64 `json:"density_eo,omitempty"`
-	IsOccupied bool     `json:"is_occupied"`
-	DistanceMm int      `json:"distance_mm,omitempty"`
+type SensorDataMsg struct {
+	IntersectionID string `json:"intersection_id"`
+	LadoA          struct {
+		Ocupado   bool `json:"ocupado"`
+		Distancia int  `json:"distancia"`
+		Energia   int  `json:"energia"`
+	} `json:"lado_a"`
+	LadoB struct {
+		Ocupado   bool `json:"ocupado"`
+		Distancia int  `json:"distancia"`
+	} `json:"lado_b"`
+	Fase       string `json:"fase"`
+	VerdeA     int    `json:"verde_a"`
+	VerdeB     int    `json:"verde_b"`
+	Emergencia bool   `json:"emergencia"`
+	Timestamp  int64  `json:"timestamp"`
 }
 
-type PhaseChangePayload struct {
-	PhaseName string `json:"phase_name"`
-	Duration  int    `json:"duration_s"` // O duración en ms
+type EmergencyMsg struct {
+	IntersectionID string  `json:"intersection_id"`
+	Active         bool    `json:"active"`
+	Confidence     float64 `json:"confidence"`
+	Method         string  `json:"method"`
+}
+
+type IntersectionStatusMsg struct {
+	IntersectionID string `json:"intersection_id"`
+	Name           string `json:"name"`
+	Status         string `json:"status"`
+	OperationMode  string `json:"operation_mode"`
+	Phase          string `json:"phase"`
+	LadoA          struct {
+		Ocupado   bool `json:"ocupado"`
+		Distancia int  `json:"distancia"`
+		Energia   int  `json:"energia"`
+	} `json:"lado_a"`
+	LadoB struct {
+		Ocupado   bool `json:"ocupado"`
+		Distancia int  `json:"distancia"`
+	} `json:"lado_b"`
+	Emergency bool  `json:"emergency"`
+	Timestamp int64 `json:"timestamp"`
 }

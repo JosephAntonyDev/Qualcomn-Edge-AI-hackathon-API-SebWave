@@ -1,54 +1,117 @@
 package websocket
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 )
 
-// ServeWS maneja las peticiones WebSocket desde clientes (móviles) o (Hardware IoT Python/Arduino)
-// Se invoca un Upgrade en el handshake de conectividad initial.
-func ServeWS(hub *Hub, c *gin.Context) {
-	// 1. Extraer queries esenciales como identidad y rol (Mobile vs Hardware)
-	role := c.Query("role")                      // 'arduino' o 'mobile'
-	intersectionID := c.Query("intersection_id") // La intersección que observará o servirá
-	clientID := c.Query("client_id")             // Hardware ID o JWT Sub UUID
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool { return true },
+}
 
-	if role == "" || clientID == "" {
-		log.Println("Roles o Client_IDs faltantes al conectar WS.")
-		c.JSON(http.StatusBadRequest, gin.H{"error": "role y client_id mandatorios"})
-		return
+func HandleArduinoWS(hub *Hub, onSensorData func(SensorDataMsg), onEmergency func(EmergencyMsg)) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+		if err != nil {
+			log.Printf("WS upgrade error: %v", err)
+			return
+		}
+
+		client := &Client{
+			Hub:       hub,
+			Conn:      conn,
+			Send:      make(chan WSMessage, 256),
+			IsArduino: true,
+		}
+
+		hub.Register <- client
+		go client.WritePump()
+
+		client.ReadPump(func(msg WSMessage) {
+			log.Printf("[WS Arduino] Recibido: type=%s", msg.Type)
+
+			switch msg.Type {
+			case "sensor_data":
+				var data SensorDataMsg
+				if err := json.Unmarshal(msg.Data, &data); err == nil {
+					log.Printf("[WS Arduino] Sensor data: intersection=%s fase=%s", data.IntersectionID, data.Fase)
+					if onSensorData != nil {
+						onSensorData(data)
+					}
+
+					// Convertimos el struct de vuelta a raw JSON o enviamos directo a móviles
+					// ya que WSMessage.Data ahora es json.RawMessage
+					raw, _ := json.Marshal(data)
+					hub.BroadcastToMobile(WSMessage{
+						Type: "intersection_update",
+						Data: raw,
+					})
+				} else {
+					log.Printf("[WS Arduino] Error al parsear sensor_data: %v", err)
+				}
+
+			case "emergency":
+				var data EmergencyMsg
+				if err := json.Unmarshal(msg.Data, &data); err == nil {
+					log.Printf("[WS Arduino] Emergency data: intersection=%s active=%v", data.IntersectionID, data.Active)
+					if onEmergency != nil {
+						onEmergency(data)
+					}
+
+					raw, _ := json.Marshal(data)
+					hub.BroadcastToMobile(WSMessage{
+						Type: "emergency_alert",
+						Data: raw,
+					})
+				} else {
+					log.Printf("[WS Arduino] Error al parsear emergency: %v", err)
+				}
+			}
+		})
 	}
+}
 
-	// 2. Upgradear Check Origin: Idealmente en prod restringir dominio,
-	// para hackathons lo marcamos true de todos.
-	upgrader.CheckOrigin = func(r *http.Request) bool {
-		return true
+func HandleMobileWS(hub *Hub) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// // TODO: verificar JWT desde query auth token si es necesario
+		token := c.Query("token")
+		if token == "" {
+			c.AbortWithStatusJSON(401, gin.H{"error": "Unauthorized, token required"})
+			return
+		}
+		// (Aquí iría la validación del JWT usando jwtSecret)
+
+		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+		if err != nil {
+			log.Printf("Mobile WS upgrade error: %v", err)
+			return
+		}
+
+		client := &Client{
+			Hub:       hub,
+			Conn:      conn,
+			Send:      make(chan WSMessage, 256),
+			IsArduino: false,
+		}
+
+		hub.Register <- client
+		go client.WritePump()
+
+		client.ReadPump(func(msg WSMessage) {
+			switch msg.Type {
+			case "trigger_emergency", "adjust_cycle":
+				// Reenviar app -> arduino
+				hub.mu.RLock()
+				if hub.ArduinoClient != nil {
+					// mandarlo para el Arduino
+					hub.ArduinoClient.Send <- msg
+				}
+				hub.mu.RUnlock()
+			}
+		})
 	}
-
-	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
-	if err != nil {
-		log.Printf("Fallo al hacer upgrade WebSocket: %v", err)
-		return
-	}
-
-	// 3. Crear wrapper de Cliente
-	client := &Client{
-		Hub:            hub,
-		Conn:           conn,
-		Send:           make(chan []byte, 256),
-		ID:             clientID,
-		Role:           role,
-		IntersectionID: intersectionID,
-	}
-
-	// 4. Registrar al hub en otra goroutine para no bloquear
-	client.Hub.Register <- client
-
-	// 5. Iniciar loops infinitos de I/O en Goroutines.
-	// Allow collection of memory referenced by the caller
-	// (run on separate tasks via Go rutines)
-	go client.WritePump()
-	go client.ReadPump()
 }

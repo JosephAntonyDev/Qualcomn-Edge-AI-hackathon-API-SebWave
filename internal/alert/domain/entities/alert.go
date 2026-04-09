@@ -35,17 +35,18 @@ const (
 )
 
 type Alert struct {
-	ID             uuid.UUID       `json:"id"`
-	IntersectionID *uuid.UUID      `json:"intersection_id,omitempty"`
-	Type           AlertType       `json:"type"`
-	Severity       AlertSeverity   `json:"severity"`
-	Status         AlertStatus     `json:"status"`
-	Title          string          `json:"title"`
-	Description    *string         `json:"description,omitempty"`
-	Metadata       json.RawMessage `json:"metadata,omitempty"`
-	ResolvedBy     *uuid.UUID      `json:"resolved_by,omitempty"`
-	ResolvedAt     *time.Time      `json:"resolved_at,omitempty"`
-	ResolutionNote *string         `json:"resolution_note,omitempty"`
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
+	ID               uuid.UUID       `json:"id"`
+	IntersectionID   *uuid.UUID      `json:"intersection_id,omitempty"`
+	IntersectionName *string         `json:"intersection_name,omitempty"` // For the UI
+	Type             AlertType       `json:"type"`
+	Severity         AlertSeverity   `json:"severity"`
+	Status           AlertStatus     `json:"status"`
+	Title            string          `json:"title"`
+	Description      *string         `json:"description,omitempty"`
+	Metadata         json.RawMessage `json:"metadata,omitempty"`
+	ResolvedBy       *uuid.UUID      `json:"resolved_by,omitempty"`
+	ResolvedAt       *time.Time      `json:"resolved_at,omitempty"`
+	ResolutionNote   *string         `json:"resolution_note,omitempty"`
+	CreatedAt        time.Time       `json:"created_at"`
+	UpdatedAt        time.Time       `json:"updated_at"`
 }

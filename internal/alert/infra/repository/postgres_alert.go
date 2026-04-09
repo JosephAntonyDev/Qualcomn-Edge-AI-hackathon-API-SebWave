@@ -43,38 +43,42 @@ func (r *PostgresAlertRepository) Create(ctx context.Context, al *entities.Alert
 
 func (r *PostgresAlertRepository) GetByID(ctx context.Context, id uuid.UUID) (*entities.Alert, error) {
 	query := `
-		SELECT id, intersection_id, type, severity, status, title, description, metadata, resolved_by, resolved_at, resolution_note, created_at, updated_at
-		FROM alerts WHERE id = $1
+		SELECT a.id, a.intersection_id, i.name as intersection_name, a.type, a.severity, a.status, a.title, a.description, a.metadata, a.resolved_by, a.resolved_at, a.resolution_note, a.created_at, a.updated_at
+		FROM alerts a
+		LEFT JOIN intersections i ON a.intersection_id = i.id
+		WHERE a.id = $1
 	`
 	return r.scanAlert(r.db.QueryRowContext(ctx, query, id))
 }
 
 func (r *PostgresAlertRepository) List(ctx context.Context, filter domainRepo.AlertFilter) ([]*entities.Alert, error) {
 	query := `
-		SELECT id, intersection_id, type, severity, status, title, description, metadata, resolved_by, resolved_at, resolution_note, created_at, updated_at
-		FROM alerts WHERE 1=1
+		SELECT a.id, a.intersection_id, i.name as intersection_name, a.type, a.severity, a.status, a.title, a.description, a.metadata, a.resolved_by, a.resolved_at, a.resolution_note, a.created_at, a.updated_at
+		FROM alerts a
+		LEFT JOIN intersections i ON a.intersection_id = i.id
+		WHERE 1=1
 	`
 	var args []interface{}
 	var conditions []string
 	argID := 1
 
 	if filter.IntersectionID != nil {
-		conditions = append(conditions, fmt.Sprintf("intersection_id = $%d", argID))
+		conditions = append(conditions, fmt.Sprintf("a.intersection_id = $%d", argID))
 		args = append(args, *filter.IntersectionID)
 		argID++
 	}
 	if filter.Type != nil {
-		conditions = append(conditions, fmt.Sprintf("type = $%d", argID))
+		conditions = append(conditions, fmt.Sprintf("a.type = $%d", argID))
 		args = append(args, *filter.Type)
 		argID++
 	}
 	if filter.Severity != nil {
-		conditions = append(conditions, fmt.Sprintf("severity = $%d", argID))
+		conditions = append(conditions, fmt.Sprintf("a.severity = $%d", argID))
 		args = append(args, *filter.Severity)
 		argID++
 	}
 	if filter.Status != nil {
-		conditions = append(conditions, fmt.Sprintf("status = $%d", argID))
+		conditions = append(conditions, fmt.Sprintf("a.status = $%d", argID))
 		args = append(args, *filter.Status)
 		argID++
 	}
@@ -83,7 +87,7 @@ func (r *PostgresAlertRepository) List(ctx context.Context, filter domainRepo.Al
 		query += " AND " + strings.Join(conditions, " AND ")
 	}
 
-	query += fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", argID, argID+1)
+	query += fmt.Sprintf(" ORDER BY a.created_at DESC LIMIT $%d OFFSET $%d", argID, argID+1)
 	args = append(args, filter.Limit, filter.Offset)
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
@@ -173,12 +177,12 @@ type rowScanner interface {
 func (r *PostgresAlertRepository) scanAlert(row rowScanner) (*entities.Alert, error) {
 	var al entities.Alert
 	var intID, resBy uuid.NullUUID
-	var desc, resNote sql.NullString
+	var desc, resNote, intName sql.NullString
 	var resAt sql.NullTime
 	var meta []byte
 
 	err := row.Scan(
-		&al.ID, &intID, &al.Type, &al.Severity, &al.Status, &al.Title, &desc, &meta, &resBy, &resAt, &resNote, &al.CreatedAt, &al.UpdatedAt,
+		&al.ID, &intID, &intName, &al.Type, &al.Severity, &al.Status, &al.Title, &desc, &meta, &resBy, &resAt, &resNote, &al.CreatedAt, &al.UpdatedAt,
 	)
 
 	if err != nil {
@@ -190,6 +194,9 @@ func (r *PostgresAlertRepository) scanAlert(row rowScanner) (*entities.Alert, er
 
 	if intID.Valid {
 		al.IntersectionID = &intID.UUID
+	}
+	if intName.Valid {
+		al.IntersectionName = &intName.String
 	}
 	if resBy.Valid {
 		al.ResolvedBy = &resBy.UUID

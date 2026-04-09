@@ -10,7 +10,8 @@ import (
 	alertInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/alert/infra"
 	"github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/core"	
 	emergencyInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/emergency/infra"	
-	intersectionInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/intersection/infra"
+	intersectionInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/intersection/infra"	
+	metricsInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/metrics/infra"	
 	sensorInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/sensor/infra"
 	trafficCycleInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/traffic_cycle/infra"
 	userInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/user/infra"
@@ -42,6 +43,7 @@ func main() {
 	trafficCycleInfra.SetupDependencies(r, db, jwtSecret)
 	alertInfra.SetupDependencies(r, db, jwtSecret)
 	emergencyInfra.SetupDependencies(r, db, jwtSecret)
+	metricsInfra.SetupDependencies(r, db, jwtSecret)
 
 	port := os.Getenv("PORT")
 	if port == "" {

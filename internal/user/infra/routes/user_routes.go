@@ -13,6 +13,11 @@ func SetupUserRoutes(
 	createUserCtrl *controllers.CreateUserController,
 	registerUserCtrl *controllers.RegisterUserController,
 	loginUserCtrl *controllers.LoginUserController,
+	getUserByUsernameCtrl *controllers.GetUserByUsernameController,
+	getUserByIDCtrl *controllers.GetUserByIDController,
+	updateUserCtrl *controllers.UpdateUserController,
+	deleteUserCtrl *controllers.DeleteUserController,
+	getMyProfileCtrl *controllers.GetMyProfileController,
 	jwtSecret string,
 ) {
 	api := r.Group("/users")
@@ -25,6 +30,13 @@ func SetupUserRoutes(
 		protected := api.Group("")
 		protected.Use(middleware.AuthMiddleware(jwtSecret))
 		{
+			// Rutas que requieren estar autenticado
+			protected.GET("/profile", getMyProfileCtrl.Handle)
+			protected.GET("/search/:username", getUserByUsernameCtrl.Handle)
+			protected.GET("/:id", getUserByIDCtrl.Handle)
+			protected.PUT("/:id", updateUserCtrl.Handle)
+			protected.DELETE("/:id", deleteUserCtrl.Handle)
+
 			// Restringidas
 			adminOnly := protected.Group("")
 			adminOnly.Use(middleware.RequireRoles(entities.RoleAdmin))

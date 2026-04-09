@@ -14,7 +14,8 @@ import (
 	metricsInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/metrics/infra"	
 	sensorInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/sensor/infra"
 	trafficCycleInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/traffic_cycle/infra"
-	userInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/user/infra"
+	userInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/user/infra"	
+	wsHub "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/websocket"
 )
 
 func main() {
@@ -37,6 +38,10 @@ func main() {
 
 	r.Use(core.SetupCORS())
 
+	// Inicializar y encender Hub global de WebSocket en sub-rutina de fondo
+	hub := wsHub.NewHub()
+	go hub.Run()
+
 	userInfra.SetupDependencies(r, db, jwtSecret)
 	intersectionInfra.SetupDependencies(r, db, jwtSecret)
 	sensorInfra.SetupDependencies(r, db, jwtSecret)
@@ -45,6 +50,9 @@ func main() {
 	emergencyInfra.SetupDependencies(r, db, jwtSecret)
 	metricsInfra.SetupDependencies(r, db, jwtSecret)
 
+	// Exponer endpoint /ws
+	wsHub.RegisterWebSocketRoutes(r, hub)
+	
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"

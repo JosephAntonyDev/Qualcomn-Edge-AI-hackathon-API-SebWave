@@ -7,11 +7,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
+	alertInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/alert/infra"
 	"github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/core"
-	userInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/user/infra"
 	intersectionInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/intersection/infra"
 	sensorInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/sensor/infra"
 	trafficCycleInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/traffic_cycle/infra"
+	userInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/user/infra"
 )
 
 func main() {
@@ -38,7 +39,8 @@ func main() {
 	intersectionInfra.SetupDependencies(r, db, jwtSecret)
 	sensorInfra.SetupDependencies(r, db, jwtSecret)
 	trafficCycleInfra.SetupDependencies(r, db, jwtSecret)
-	
+	alertInfra.SetupDependencies(r, db, jwtSecret)
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"

@@ -11,31 +11,26 @@ import (
 	"github.com/google/uuid"
 )
 
-type CreateUserRequest struct {
+type RegisterUserRequest struct {
 	Username string `json:"username" binding:"required"`
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required,min=6"`
-	Role     string `json:"role" binding:"required"`
 	FullName string `json:"full_name,omitempty"`
 }
 
-type CreateUserUseCase struct {
+type RegisterUserUseCase struct {
 	repo   repository.UserRepository
 	hasher ports.PasswordHasher
 }
 
-func NewCreateUserUseCase(r repository.UserRepository, h ports.PasswordHasher) *CreateUserUseCase {
-	return &CreateUserUseCase{
+func NewRegisterUserUseCase(r repository.UserRepository, h ports.PasswordHasher) *RegisterUserUseCase {
+	return &RegisterUserUseCase{
 		repo:   r,
 		hasher: h,
 	}
 }
 
-func (uc *CreateUserUseCase) Execute(ctx context.Context, requesterRole string, req CreateUserRequest) (*entities.User, error) {
-	if requesterRole != string(entities.RoleAdmin) {
-		return nil, errors.New("operación denegada: solo un administrador puede crear usuarios")
-	}
-
+func (uc *RegisterUserUseCase) Execute(ctx context.Context, req RegisterUserRequest) (*entities.User, error) {
 	existingUser, _ := uc.repo.GetUserByUsername(ctx, req.Username)
 	if existingUser != nil {
 		return nil, errors.New("el usuario ya está registrado en el sistema")
@@ -52,7 +47,7 @@ func (uc *CreateUserUseCase) Execute(ctx context.Context, requesterRole string, 
 		Email:        req.Email,
 		FullName:     req.FullName,
 		PasswordHash: hashedPassword,
-		Role:         entities.UserRole(req.Role),
+		Role:         entities.RoleViewer,
 		IsActive:     true,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),

@@ -3,14 +3,15 @@ package main
 import (
 	"log"
 	"os"
-	_"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+
 	"github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/core"
+	userInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/user/infra"
 )
 
-func main (){
+func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("No se encontró archivo .env, usando variables de entorno del sistema")
 	}
@@ -29,6 +30,8 @@ func main (){
 	r := gin.Default()
 
 	r.Use(core.SetupCORS())
+
+	userInfra.SetupDependencies(r, db, jwtSecret)
 
 	port := os.Getenv("PORT")
 	if port == "" {

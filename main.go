@@ -9,6 +9,8 @@ import (
 
 	"github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/core"
 	userInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/user/infra"
+	intersectionInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/intersection/infra"
+	sensorInfra "github.com/JosephAntonyDev/Qualcomn-Edge-AI-hackathon-API-SebWave/internal/sensor/infra"
 )
 
 func main() {
@@ -32,6 +34,8 @@ func main() {
 	r.Use(core.SetupCORS())
 
 	userInfra.SetupDependencies(r, db, jwtSecret)
+	intersectionInfra.SetupDependencies(r, db, jwtSecret)
+	sensorInfra.SetupDependencies(r, db, jwtSecret)
 
 	port := os.Getenv("PORT")
 	if port == "" {
